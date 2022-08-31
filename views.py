@@ -1,5 +1,17 @@
-@login_required
-@transaction.commit_on_success
+def create_payment(transaction, currency):
+    return UserPayments(
+        status=0,
+        update_date=datetime.datetime.now(),
+        amount=transaction.amount,
+        address=transaction.address,
+        payment=transaction.txn_id,
+        confirms_needed=transaction.confirms_needed,
+        timeout=transaction.timeout,
+        status_url=transaction.status_url,
+        qrcode_url=transaction.qrcode_url,
+        currency=currency)
+
+
 def get_params(transaction, currency, policy):
     return {
         "payment_amount":
@@ -23,6 +35,15 @@ def get_params(transaction, currency, policy):
     }
 
 
+def handle_exception(logger, e):
+    logger.error(e)
+    message = 'Payment gateway is down'
+    response_data = {'error': True, 'message': message}
+    return JsonResponse(response_data)
+
+
+@login_required
+@transaction.commit_on_success
 def create_w(request, id):
     if Register.objects.filter(id=id).exists() and Register.objects.get(id=id).sender == request.sender:
         return create_response([id], user_friendly=True)
@@ -85,25 +106,11 @@ def create_payment(request):
                 if len(transaction) == 0:
                     raise Exception
             except Exception as e:
-                logger.error(e)
-                message = 'Payment gateway is down'
-                response_data = {'error': True, 'message': message}
-                return JsonResponse(response_data)
+                handle_exception(logger, e)
 
             try:
                 try:
-                    payment = UserPayments(
-                        status=0,
-                        update_date=datetime.datetime.now(),
-                        amount=transaction.amount,
-                        address=transaction.address,
-                        payment=transaction.txn_id,
-                        confirms_needed=transaction.confirms_needed,
-                        timeout=transaction.timeout,
-                        status_url=transaction.status_url,
-                        qrcode_url=transaction.qrcode_url,
-                        currency=currency)
-
+                    payment = create_payment(transaction, currency)
                     try:
                         default_email = os.environ.get('DJANGO_EMAIL_DEFAULT_EMAIL')
                         subject = "Website: You’re one step away from being secured"
@@ -155,23 +162,10 @@ def create_payment(request):
                     client = CryptoPayments(public_key, private_key)
                     transaction = client.createTransaction(post_params)
                 except Exception as e:
-                    logger.error(e)
-                    message = 'Payment gateway is down'
-                    response_data = {'error': True, 'message': message}
-                    return JsonResponse(response_data)
+                    handle_exception(logger, e)
 
                 try:
-                    payment = UserPayments(
-                        status=0,
-                        update_date=datetime.datetime.now(),
-                        amount=transaction.amount,
-                        address=transaction.address,
-                        payment=transaction.txn_id,
-                        confirms_needed=transaction.confirms_needed,
-                        timeout=transaction.timeout,
-                        status_url=transaction.status_url,
-                        qrcode_url=transaction.qrcode_url,
-                        currency=currency)
+                    payment = create_payment(transaction, currency)
                     payment.save()
                     policy.payment_id = payment
                     policy.save()
