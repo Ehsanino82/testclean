@@ -1,4 +1,4 @@
-def create_payment(transaction, currency):
+def create_user_payment(transaction, currency):
     return UserPayments(
         status=0,
         update_date=datetime.datetime.now(),
@@ -110,7 +110,7 @@ def create_payment(request):
 
             try:
                 try:
-                    payment = create_payment(transaction, currency)
+                    payment = create_user_payment(transaction, currency)
                     try:
                         default_email = os.environ.get('DJANGO_EMAIL_DEFAULT_EMAIL')
                         subject = "Website: You’re one step away from being secured"
@@ -165,7 +165,7 @@ def create_payment(request):
                     handle_exception(logger, e)
 
                 try:
-                    payment = create_payment(transaction, currency)
+                    payment = create_user_payment(transaction, currency)
                     payment.save()
                     policy.payment_id = payment
                     policy.save()
